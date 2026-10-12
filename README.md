@@ -1,6 +1,6 @@
 # matelot-cli
 
-Command-line client for [Matelot](https://matelot-io.github.io/website/). Install: `npm install -g github:matelot-io/setup-cli#v2` (Node ≥ 18, no dependencies) or the GitHub Action below; releases are tags of this repository. Authenticates with **signed CI tokens** (HMAC over
+Command-line client for [Matelot](https://matelot-cloud.github.io/website/). Install: `npm install -g github:matelot-cloud/setup-cli#v2` (Node ≥ 18, no dependencies) or the GitHub Action below; releases are tags of this repository. Authenticates with **signed CI tokens** (HMAC over
 timestamp, nonce, method, path and body — the secret never travels), created in a project's
 *Settings → CI tokens*.
 
@@ -15,7 +15,7 @@ npx matelot-cli sbom --service <serviceId> --file bom.cdx.json --target image --
 GitHub Actions:
 
 ```yaml
-- uses: matelot-io/setup-cli@v2             # installs the CLI at that tag, exports MATELOT_* from inputs
+- uses: matelot-cloud/setup-cli@v2             # installs the CLI at that tag, exports MATELOT_* from inputs
   with: { url: ${{ vars.MATELOT_URL }}, key-id: ${{ secrets.MATELOT_KEY_ID }}, secret: ${{ secrets.MATELOT_SECRET }} }
 - run: matelot deploy --env ${{ vars.MATELOT_ENV_PRODUCTION }} --version ${{ github.ref_name }}
 ```
@@ -24,10 +24,10 @@ Exit codes: 0 ok · 1 error · 3 authentication failed. `--json` prints raw resp
 
 ## This repository
 
-`matelot-io/setup-cli` is the published copy of the CLI (Apache-2.0): the source, the `examples/` for GitHub Actions,
+`matelot-cloud/setup-cli` is the published copy of the CLI (Apache-2.0): the source, the `examples/` for GitHub Actions,
 GitLab CI and Bitbucket Pipelines, and `action.yml` — so the same repository is both the npm-installable package
-(`npm install -g github:matelot-io/setup-cli#<tag>`) and the GitHub Action (`uses: matelot-io/setup-cli@<tag>`).
+(`npm install -g github:matelot-cloud/setup-cli#<tag>`) and the GitHub Action (`uses: matelot-cloud/setup-cli@<tag>`).
 Tags: `v<major>` follows the latest release of that major (`v2`), `v2.19.2` pins one. It is written by the platform's
 release pipeline on every CLI release; pull requests cannot be merged here — report problems in
-[matelot-io/matelot](https://github.com/matelot-io/matelot/issues). Full command reference:
-https://matelot-io.github.io/website/docs/latest/cli-reference.html
+[matelot-cloud/matelot](https://github.com/matelot-cloud/matelot/issues). Full command reference:
+https://matelot-cloud.github.io/website/docs/latest/cli-reference.html
