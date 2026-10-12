@@ -24,8 +24,9 @@ Exit codes: 0 ok · 1 error · 3 authentication failed. `--json` prints raw resp
 
 ## This repository
 
-`matelot-cloud/setup-cli` is the published copy of the CLI (Apache-2.0): the source, the `examples/` for GitHub Actions,
-GitLab CI and Bitbucket Pipelines, and `action.yml` — so the same repository is both the npm-installable package
+`matelot-cloud/setup-cli` is the published copy of the CLI (Apache-2.0): the source, the **compiled `dist/`** (so a git
+install needs nothing but Node — no build step, no devDependencies), the `examples/` for GitHub Actions, GitLab CI and
+Bitbucket Pipelines, and `action.yml` — so the same repository is both the npm-installable package
 (`npm install -g github:matelot-cloud/setup-cli#<tag>`) and the GitHub Action (`uses: matelot-cloud/setup-cli@<tag>`).
 Tags: `v<major>` follows the latest release of that major (`v2`), `v2.19.2` pins one. It is written by the platform's
 release pipeline on every CLI release; pull requests cannot be merged here — report problems in

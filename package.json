@@ -1,7 +1,7 @@
 {
   "name": "matelot-cli",
   "version": "2.19.2",
-  "description": "Matelot CLI \u2014 deploy, promote, gate, and query the Matelot product-security platform",
+  "description": "Matelot CLI — deploy, promote, gate, and query the Matelot product-security platform",
   "license": "Apache-2.0",
   "type": "commonjs",
   "bin": {
@@ -19,9 +19,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/index.js',0o755)\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/*.test.js",
-    "prepublishOnly": "npm run build && npm test",
-    "prepare": "npm run build"
+    "test": "node --test dist/*.test.js"
   },
   "repository": {
     "type": "git",
@@ -34,10 +32,6 @@
     "devsecops",
     "ci"
   ],
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
-  },
   "homepage": "https://github.com/matelot-cloud/setup-cli",
   "bugs": {
     "url": "https://github.com/matelot-cloud/matelot/issues"
