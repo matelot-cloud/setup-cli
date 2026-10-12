@@ -7,7 +7,8 @@ const login_1 = require("./login");
 const signing_1 = require("./signing");
 function configFromEnv(env = process.env) {
     const pick = (k) => env[`MATELOT_${k}`] ?? env[`SECOPS_${k}`];
-    const url = (pick('URL') ?? '').replace(/\/$/, '');
+    // the cell: MATELOT_URL (set from --url by index.ts), else the current cell of `matelot login` / `matelot use`
+    const url = (pick('URL') || (0, login_1.resolveCellUrl)(undefined, env) || '').replace(/\/$/, '');
     // A personal access token (SECOPS_TOKEN=spt_…) replaces the CI token pair.
     const token = pick('TOKEN') ?? '';
     if (token) {
@@ -19,9 +20,11 @@ function configFromEnv(env = process.env) {
     const secret = pick('SECRET') ?? '';
     // No env credentials: use what `matelot login` stored (refreshed lazily by index.ts before the first request)
     if (!keyId && !secret) {
-        const stored = (0, login_1.readCredentials)(url || undefined);
+        const stored = url ? (0, login_1.readCredentials)(url) : null;
         if (stored?.accessToken)
             return { url: url || stored.url, keyId: '', secret: '', token: stored.accessToken, fromLogin: true };
+        if (!url)
+            throw new Error('no cell selected — run `matelot login --url https://…` (or `matelot use <url>` for a stored login, or set MATELOT_URL)');
     }
     const missing = [!url && 'MATELOT_URL', !keyId && 'MATELOT_KEY_ID', !secret && 'MATELOT_SECRET'].filter(Boolean);
     if (missing.length)
@@ -99,4 +102,4 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         clearTimeout(timer);
     }
 }
-exports.VERSION = '2.21.0';
+exports.VERSION = '2.22.0';

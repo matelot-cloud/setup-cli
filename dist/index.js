@@ -24,6 +24,8 @@ Commands
   whoami                                                 identity and permissions of the token
   doctor   [--url URL]                                   health of a cell: API, version, login, organization, runners, registry (exit 1 when something is wrong)
   login    --url URL [--scope read|write|sudo] [--no-browser]   sign in through the browser (OAuth; prints the link when no browser can be opened); logout revokes it
+  cells                                                  stored logins (URL, user, scope, expiry) with the current one marked; use <URL> makes one current
+  use      <URL>                                         target that stored login from now on (--url and MATELOT_URL still win per command)
   mcp      [--check]                                    how to connect Claude (Code / Desktop) to this cell's MCP server; --check runs the handshake
   vulnerabilities recorrelate [--org ID | --service ID] [--wait]   re-run advisory correlation (asynchronous job)
   evidence export|verify|summary|vex                     CRA evidence bundles (export --release ID --out f.zip · verify f.zip · vex --release ID)
@@ -100,6 +102,22 @@ async function main() {
     }
     if (command === 'version' || command === '--version')
         return console.log(client_1.VERSION);
+    // --url targets a cell for ANY command (whoami, doctor, resources…): it wins over MATELOT_URL and the current cell
+    if (str(flags.url) && command !== 'login')
+        process.env.MATELOT_URL = str(flags.url);
+    if (command === 'cells') {
+        const cells = (0, login_1.listCells)();
+        out(cells, cells.length ? cells.map((c) => `${c.current ? '*' : ' '} ${c.url.padEnd(40)} ${(c.user ?? '').padEnd(28)} ${c.scope.padEnd(6)} ${c.loggedOut ? 'logged out' : c.valid ? `valid until ${c.expiresAt ?? 'unknown'}` : `expired ${c.expiresAt}`}`).join('\n') + `\n(* = current; --url or MATELOT_URL override it; matelot use <url> changes it)` : 'no stored logins: matelot login --url https://…');
+        return;
+    }
+    if (command === 'use') {
+        const u = positional[0];
+        if (!u)
+            throw new client_1.CliError('usage: matelot use <url>');
+        (0, login_1.setCurrentCell)(u);
+        out({ current: u.replace(/\/$/, '') }, `current cell: ${u.replace(/\/$/, '')}`);
+        return;
+    }
     if (command === 'login') {
         const url = str(flags.url) ?? process.env.MATELOT_URL ?? process.env.SECOPS_URL;
         if (!url)
@@ -804,9 +822,9 @@ function onboardingText(r, verb) {
  * first (reachability, readiness, version), then everything the credentials allow (login, organization, runners,
  * registry). Prints one line per check; exit 1 when a check fails. */
 async function doctor(urlFlag, json) {
-    const url = (urlFlag ?? process.env.MATELOT_URL ?? process.env.SECOPS_URL ?? '').replace(/\/$/, '');
+    const url = (0, login_1.resolveCellUrl)(urlFlag) ?? '';
     if (!url)
-        throw new client_1.CliError('usage: matelot doctor --url https://matelot.example (or MATELOT_URL)');
+        throw new client_1.CliError('usage: matelot doctor --url https://matelot.example (or MATELOT_URL, or a stored login: matelot cells)');
     const checks = [];
     const add = (name, ok, detail) => { checks.push({ name, ok, detail }); if (!json)
         console.log(`${ok === null ? '  --' : ok ? '  OK' : 'FAIL'}  ${name.padEnd(14)} ${detail}`); };
@@ -866,11 +884,11 @@ async function doctor(urlFlag, json) {
     // 4. credentials (optional: without any, the remaining checks are skipped, not failed)
     let config = null;
     try {
-        config = (0, client_1.configFromEnv)();
+        config = (0, client_1.configFromEnv)({ ...process.env, MATELOT_URL: url });
         if (config.fromLogin) {
-            const t = await (0, login_1.freshToken)(config.url);
+            const t = await (0, login_1.freshToken)(url);
             if (!t)
-                throw new Error('stored login expired');
+                throw new Error(`stored login for ${url} expired`);
             config.token = t;
         }
     }
@@ -882,7 +900,7 @@ async function doctor(urlFlag, json) {
     let me = null;
     try {
         me = await (0, client_1.request)(config, 'GET', '/api/v1/api-tokens/whoami');
-        add('login', true, me.kind === 'token' ? `CI token "${me.name}"` : `user ${me.email}`);
+        add('login', true, `${me.kind === 'token' ? `CI token "${me.name}"` : `user ${me.email}`} on ${url}`);
     }
     catch (e) {
         add('login', false, e.message);
@@ -902,7 +920,7 @@ async function doctor(urlFlag, json) {
             const pools = await (0, client_1.request)(config, 'GET', `/api/v1/organizations/${orgs[0].id}/runner-pools`);
             const online = pools.flatMap((p) => p.runners.filter((r) => r.status === 'online'));
             const managed = pools.find((p) => p.managed);
-            add('runners', online.length > 0, online.length ? `${online.length} online (${online.map((r) => r.name).join(', ')})${managed ? '' : ' · no managed pool'}` : 'no runner online: pipelines will queue (docker compose logs runner / the managed runner StatefulSet)');
+            add('runners', online.length > 0, `${online.length ? `${online.length} online (${online.map((r) => r.name).join(', ')})${managed ? '' : ' · no managed pool'}` : 'no runner online: pipelines will queue (docker compose logs runner / the managed runner StatefulSet)'} — GET /organizations/${orgs[0].slug}/runner-pools: ${pools.length} pool(s) incl. the cell's managed pool`);
         }
         catch (e) {
             add('runners', false, e.message);
