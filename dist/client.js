@@ -8,7 +8,7 @@ const signing_1 = require("./signing");
 function configFromEnv(env = process.env) {
     const pick = (k) => env[`MATELOT_${k}`] ?? env[`SECOPS_${k}`];
     // the cell: MATELOT_URL (set from --url by index.ts), else the current cell of `matelot login` / `matelot use`
-    const url = (pick('URL') || (0, login_1.resolveCellUrl)(undefined, env) || '').replace(/\/$/, '');
+    const url = (0, login_1.normalizeCellUrl)(pick('URL') || (0, login_1.resolveCellUrl)(undefined, env) || '');
     // A personal access token (SECOPS_TOKEN=spt_…) replaces the CI token pair.
     const token = pick('TOKEN') ?? '';
     if (token) {
@@ -102,4 +102,4 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         clearTimeout(timer);
     }
 }
-exports.VERSION = '2.22.0';
+exports.VERSION = '2.22.1';

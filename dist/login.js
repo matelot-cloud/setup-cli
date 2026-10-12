@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.credentialsPath = exports.CLI_CLIENT_ID = void 0;
+exports.normalizeCellUrl = normalizeCellUrl;
 exports.listCells = listCells;
 exports.currentCellUrl = currentCellUrl;
 exports.setCurrentCell = setCurrentCell;
@@ -57,7 +58,21 @@ function writeFile(all) {
     catch { /* windows */ }
 }
 const isUrlKey = (k) => /^https?:\/\//.test(k);
-const norm = (u) => u.replace(/\/$/, '');
+/** One spelling per cell: scheme and host lower-case, the default port dropped (http://localhost:80 → http://localhost),
+ *  no trailing slash; a path prefix is kept. Used for the credentials keys, `current`, --url and MATELOT_URL. */
+function normalizeCellUrl(u) {
+    const t = u.trim();
+    try {
+        const x = new URL(t);
+        if (!/^https?:$/.test(x.protocol))
+            return t.replace(/\/$/, '');
+        return `${x.origin}${x.pathname}`.replace(/\/$/, ''); // origin: lower-cased host, default port omitted
+    }
+    catch {
+        return t.replace(/\/$/, '');
+    }
+}
+const norm = normalizeCellUrl;
 /** Stored logins, newest-expiry first is not meaningful: file order, with the current one marked. */
 function listCells() {
     const all = readFile();
@@ -211,7 +226,7 @@ function discoveryMismatch(base, meta) {
     return `the cell advertises ${new URL(off[0]).origin} but you connected to ${origin} — check API_PUBLIC_URL on the cell (it must be the public URL, not the API's listen address); the sign-in link below may not open`;
 }
 async function login(url, scope, opts = {}) {
-    const base = url.replace(/\/$/, '');
+    const base = normalizeCellUrl(url);
     const f = retryingFetch(opts.fetchImpl ?? fetch, opts.sleep);
     const meta = await discover(base, f);
     const verifier = (0, node_crypto_1.randomBytes)(32).toString('base64url');
