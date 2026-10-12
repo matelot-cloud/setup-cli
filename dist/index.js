@@ -114,8 +114,9 @@ async function main() {
         const u = positional[0];
         if (!u)
             throw new client_1.CliError('usage: matelot use <url>');
-        (0, login_1.setCurrentCell)(u);
-        out({ current: u.replace(/\/$/, '') }, `current cell: ${u.replace(/\/$/, '')}`);
+        const current = (0, login_1.normalizeCellUrl)(u);
+        (0, login_1.setCurrentCell)(current);
+        out({ current }, `current cell: ${current}`);
         return;
     }
     if (command === 'login') {
