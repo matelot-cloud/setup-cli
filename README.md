@@ -1,6 +1,6 @@
 # matelot-cli
 
-Command-line client for [Matelot](https://matelot-cloud.github.io/website/). Install: `npm install -g github:matelot-cloud/setup-cli#v2` (Node ≥ 18, no dependencies) or the GitHub Action below; releases are tags of this repository. Authenticates with **signed CI tokens** (HMAC over
+Command-line client for [Matelot](https://matelot-cloud.github.io/website/). Install (Node ≥ 18, no dependencies, no build): `npm install -g https://github.com/matelot-cloud/setup-cli/releases/latest/download/matelot-cli.tgz` — pinned: `releases/download/vX.Y.Z/matelot-cli-X.Y.Z.tgz` — or the GitHub Action below. Not `github:…#tag`: npm 10 leaves that install as a dangling symlink. Authenticates with **signed CI tokens** (HMAC over
 timestamp, nonce, method, path and body — the secret never travels), created in a project's
 *Settings → CI tokens*.
 
@@ -27,7 +27,8 @@ Exit codes: 0 ok · 1 error · 3 authentication failed. `--json` prints raw resp
 `matelot-cloud/setup-cli` is the published copy of the CLI (Apache-2.0): the source, the **compiled `dist/`** (so a git
 install needs nothing but Node — no build step, no devDependencies), the `examples/` for GitHub Actions, GitLab CI and
 Bitbucket Pipelines, and `action.yml` — so the same repository is both the npm-installable package
-(`npm install -g github:matelot-cloud/setup-cli#<tag>`) and the GitHub Action (`uses: matelot-cloud/setup-cli@<tag>`).
+(every release attaches `matelot-cli-X.Y.Z.tgz` and `matelot-cli.tgz`; `npm install -g <asset URL>`) and the GitHub
+Action (`uses: matelot-cloud/setup-cli@<tag>`, which installs the tag's source archive).
 Tags: `v<major>` follows the latest release of that major (`v2`), `v2.19.2` pins one. It is written by the platform's
 release pipeline on every CLI release; pull requests cannot be merged here — report problems in
 [matelot-cloud/matelot](https://github.com/matelot-cloud/matelot/issues). Full command reference:
