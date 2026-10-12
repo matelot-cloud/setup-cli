@@ -846,7 +846,24 @@ async function doctor(urlFlag, json) {
     catch (e) {
         add('version', false, e.message);
     }
-    // 3. credentials (optional: without any, the remaining checks are skipped, not failed)
+    // 3. OAuth discovery: what `matelot login` and MCP clients read first — must be JSON (not the web app) and must point
+    //    back at this origin (not the API's listen address)
+    try {
+        const r = await get('/.well-known/oauth-authorization-server');
+        const meta = r.body;
+        if (typeof meta === 'string')
+            add('discovery', false, `/.well-known/oauth-authorization-server returned ${/^\s*</.test(meta) ? 'HTML (the web app)' : 'non-JSON'} (HTTP ${r.status}) — route /.well-known/* to the API in the proxy / ingress`);
+        else if (r.status !== 200 || !meta.authorization_endpoint)
+            add('discovery', false, `/.well-known/oauth-authorization-server → HTTP ${r.status} without OAuth metadata`);
+        else {
+            const m = (0, login_1.discoveryMismatch)(url, meta);
+            add('discovery', !m, m ?? `endpoints on ${new URL(meta.authorization_endpoint).origin} (matelot login will work)`);
+        }
+    }
+    catch (e) {
+        add('discovery', false, e.message);
+    }
+    // 4. credentials (optional: without any, the remaining checks are skipped, not failed)
     let config = null;
     try {
         config = (0, client_1.configFromEnv)();
@@ -871,7 +888,7 @@ async function doctor(urlFlag, json) {
         add('login', false, e.message);
         return finish();
     }
-    // 4. organization + runners + registry
+    // 5. organization + runners + registry
     let orgs = [];
     try {
         orgs = await (0, client_1.request)(config, 'GET', '/api/v1/organizations');

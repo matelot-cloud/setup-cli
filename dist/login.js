@@ -6,6 +6,7 @@ exports.writeCredentials = writeCredentials;
 exports.openBrowser = openBrowser;
 exports.retryingFetch = retryingFetch;
 exports.discover = discover;
+exports.discoveryMismatch = discoveryMismatch;
 exports.login = login;
 exports.freshToken = freshToken;
 exports.logout = logout;
@@ -121,7 +122,30 @@ async function discover(base, f) {
     }
     if (!res.ok || !meta.authorization_endpoint || !meta.token_endpoint)
         throw new Error(`${u} answered HTTP ${res.status} without OAuth metadata: ${text.slice(0, 200)}`);
+    const mismatch = discoveryMismatch(base, meta);
+    if (mismatch)
+        console.error(`warning: ${mismatch}`);
     return meta;
+}
+/** The advertised endpoints must live on the origin the user connected to; otherwise the login link points at an address
+ *  that is not exposed (the API's listen port behind a proxy). Returns the warning text, or null when consistent. */
+function discoveryMismatch(base, meta) {
+    let origin;
+    try {
+        origin = new URL(base).origin;
+    }
+    catch {
+        return null;
+    }
+    const off = ['authorization_endpoint', 'token_endpoint'].map((k) => meta[k]).filter((v) => !!v).filter((v) => { try {
+        return new URL(v).origin !== origin;
+    }
+    catch {
+        return true;
+    } });
+    if (!off.length)
+        return null;
+    return `the cell advertises ${new URL(off[0]).origin} but you connected to ${origin} — check API_PUBLIC_URL on the cell (it must be the public URL, not the API's listen address); the sign-in link below may not open`;
 }
 async function login(url, scope, opts = {}) {
     const base = url.replace(/\/$/, '');
