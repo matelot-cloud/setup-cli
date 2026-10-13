@@ -6,6 +6,7 @@ const node_fs_1 = require("node:fs");
 const client_1 = require("./client");
 const signing_1 = require("./signing");
 const zip_read_1 = require("./zip-read");
+const registry_info_1 = require("./registry-info");
 const login_1 = require("./login");
 const resources_1 = require("./resources");
 const sum = (c) => (c ? Object.values(c).reduce((a, b) => a + b, 0) : 0);
@@ -430,7 +431,7 @@ Check the handshake: matelot mcp --check`);
                 if (r.status !== 0)
                     throw new client_1.CliError(`docker login ${info.host} failed`);
                 if (!flags.quiet)
-                    console.log(`logged in to ${info.host} as ${config.keyId}`);
+                    console.log(`logged in to ${info.host} as ${username}${config.token ? ' (personal token)' : ' (CI token)'} — push to ${info.host}/$(matelot registry path --service <serviceId>):<tag>`);
                 return;
             }
             if (sub === 'path') {
@@ -683,6 +684,10 @@ async function runResource(resource, positional, flags, config) {
         process.stdout.write(res.endsWith('\n') ? res : `${res}\n`);
         return true;
     } // CSV and other text
+    if (resource === 'registry' && verb === 'info' && !flags.json && res && typeof res === 'object') {
+        console.log((0, registry_info_1.registryInfoText)(res));
+        return true;
+    }
     if (resource === 'usage' && !flags.json && res && typeof res === 'object') {
         console.log(usageText(res));
         return true;

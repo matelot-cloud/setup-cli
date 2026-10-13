@@ -102,4 +102,4 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         clearTimeout(timer);
     }
 }
-exports.VERSION = '2.22.2';
+exports.VERSION = '2.22.3';
