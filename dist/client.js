@@ -70,7 +70,7 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         try {
             response = await fetch(`${config.url}${path}`, {
                 method,
-                headers: { Authorization: config.token ? `Bearer ${config.token}` : (0, signing_1.signatureHeader)(config.keyId, config.secret, method, path, raw), 'Content-Type': 'application/json', 'User-Agent': `secops-cli/${exports.VERSION}` },
+                headers: { ...(config.anonymous ? {} : { Authorization: config.token ? `Bearer ${config.token}` : (0, signing_1.signatureHeader)(config.keyId, config.secret, method, path, raw) }), 'Content-Type': 'application/json', 'User-Agent': `secops-cli/${exports.VERSION}` },
                 body: raw.length ? raw : undefined,
                 signal: controller.signal,
             });
@@ -102,4 +102,4 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         clearTimeout(timer);
     }
 }
-exports.VERSION = '2.22.4';
+exports.VERSION = '2.23.0';

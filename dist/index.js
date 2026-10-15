@@ -7,6 +7,7 @@ const client_1 = require("./client");
 const signing_1 = require("./signing");
 const zip_read_1 = require("./zip-read");
 const registry_info_1 = require("./registry-info");
+const members_text_1 = require("./members-text");
 const login_1 = require("./login");
 const resources_1 = require("./resources");
 const sum = (c) => (c ? Object.values(c).reduce((a, b) => a + b, 0) : 0);
@@ -136,6 +137,15 @@ async function main() {
     }
     if (command === 'doctor') {
         await doctor(str(flags.url), !!flags.json);
+        return;
+    }
+    // a one-time setup link needs no login: the cell comes from the link itself (or MATELOT_URL)
+    if (command === 'invite') {
+        const link = str(flags.link) ?? '';
+        const url = (0, login_1.normalizeCellUrl)(/^https?:\/\//.test(link) ? link.replace(/\/invite\/.*$/, '') : (process.env.MATELOT_URL ?? process.env.SECOPS_URL ?? (0, login_1.resolveCellUrl)(undefined, process.env) ?? ''));
+        if (!url)
+            throw new client_1.CliError('usage: matelot invite show|accept --link https://<cell>/invite/<token> [--password …]');
+        await runResource(command, positional, flags, { url, keyId: '', secret: '', anonymous: true });
         return;
     }
     const config = (0, client_1.configFromEnv)();
@@ -612,15 +622,30 @@ async function runResource(resource, positional, flags, config) {
             throw new client_1.CliError(`usage: matelot ${resource} <${verbs.join('|')}> …`);
         return false;
     }
+    // `--scope projects/ID` for the commands that take scopeType + scopeId in the body / query (members, service accounts)
+    if (cmd.fields?.includes('scopeType') && !cmd.path.includes(':scope') && typeof flags.scope === 'string') {
+        const raw = flags.scope.replace(/^\/+|\/+$/g, '');
+        const m = /^([a-z]+)\/([0-9a-f-]{36})$/i.exec(raw);
+        const type = raw === 'org' ? 'ORGANIZATION' : m ? resources_1.SCOPE_SEGMENTS[m[1].toLowerCase()] : undefined;
+        if (!type)
+            throw new client_1.CliError('--scope must be organizations/ID, workspaces/ID, teams/ID, projects/ID (or org for your organization)');
+        const id = raw === 'org' ? await defaultOrg(config) : m[2];
+        const { scope: _s, ...rest } = flags;
+        flags = { ...rest, 'scope-type': type, 'scope-id': id };
+    }
+    // a one-time setup link may be given whole: https://cell/invite/TOKEN
+    if (typeof flags.link === 'string')
+        flags = { ...flags, link: flags.link.replace(/^.*\/invite\//, '').replace(/[?#].*$/, '') };
     // path params from flags (or a positional id)
     let path = cmd.path;
     for (const [flag, name] of Object.entries(resources_1.PARAM_FLAGS)) {
-        if (!path.includes(`:${name}`))
+        const param = new RegExp(`:${name}(?![A-Za-z])`); // ":to" must not match ":tokenId"
+        if (!param.test(path))
             continue;
         const v = str(flags[flag]) ?? (name === 'id' ? positional[1] : undefined) ?? process.env[`SECOPS_${flag.toUpperCase()}`] ?? (flag === 'org' ? await defaultOrg(config) : undefined);
         if (!v)
             throw new client_1.CliError(`--${flag} is required for "matelot ${resource} ${verb}"`);
-        path = path.replace(`:${name}`, name === 'scope' ? v.replace(/^\/+|\/+$/g, '') : encodeURIComponent(v));
+        path = path.replace(param, name === 'scope' ? v.replace(/^\/+|\/+$/g, '') : encodeURIComponent(v));
     }
     // fields from flags
     // Unknown flags are an error, not silently ignored (a typo like --enforced must not create a policy without enforcement)
@@ -638,11 +663,15 @@ async function runResource(resource, positional, flags, config) {
         const raw = flags[flag];
         if (raw === undefined)
             continue;
+        if (f === 'expiresAt' && (raw === 'none' || raw === 'never')) {
+            payload[f] = null;
+            continue;
+        }
         if (f === 'expiresAt' && typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
             payload[f] = `${raw}T23:59:59Z`;
             continue;
         }
-        payload[f] = raw === true ? true : ['environmentKinds', 'environments', 'events'].includes(f) ? String(raw).split(',').map((x) => x.trim()).filter(Boolean) : f === 'expiresInDays' || f === 'limit' || f === 'days' ? Number(raw) : raw === 'true' ? true : raw === 'false' ? false : raw;
+        payload[f] = raw === true ? true : ['environmentKinds', 'environments', 'events', 'emails', 'userIds'].includes(f) ? String(raw).split(',').map((x) => x.trim()).filter(Boolean) : f === 'expiresInDays' || f === 'limit' || f === 'days' ? Number(raw) : raw === 'true' ? true : raw === 'false' ? false : raw;
     }
     // --body '{...}': raw JSON merged last — nested fields (auth, rules, settings) exactly as the web app sends them
     if (typeof flags.body === 'string') {
@@ -700,7 +729,7 @@ async function runResource(resource, positional, flags, config) {
         console.log(coverageText(res, flags.uncovered === true || flags.uncovered === 'true'));
         return true;
     }
-    const summary = flags.json ? null : connectionSummary(resource, verb, res);
+    const summary = flags.json ? null : connectionSummary(resource, verb, res) ?? (0, members_text_1.membersSummary)(resource, verb, res);
     if (summary !== null) {
         if (!flags.quiet)
             console.log(summary);
