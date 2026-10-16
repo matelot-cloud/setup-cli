@@ -296,7 +296,7 @@ Check the handshake: matelot mcp --check`);
                     console.log(`  ${f.ok ? 'ok  ' : 'FAIL'} ${f.name}`);
                 console.log(r.signatureValid ? 'signature: valid (produced by this cell)' : 'signature: INVALID');
                 if (!r.signatureValid || r.files.some((f) => !f.ok))
-                    process.exit(2);
+                    process.exitCode = 2;
                 return;
             }
             if (await runResource(command, positional, flags, config))
@@ -336,10 +336,12 @@ Check the handshake: matelot mcp --check`);
                 for (const v of ev.violations)
                     console.log(`  ${v.action === 'block' ? '✗' : '!'} ${v.policyName}: ${v.message}`);
             }
-            if (ev.pending)
-                process.exit(3); // 3 = not evaluated (SBOM missing / correlation pending or failed) — distinct from 2 = policy violation
+            if (ev.pending) {
+                process.exitCode = 3;
+                return;
+            } // 3 = not evaluated (SBOM missing / correlation pending or failed) — distinct from 2 = policy violation
             if (ev.result === 'fail')
-                process.exit(2);
+                process.exitCode = 2;
             return;
         }
         case 'deploy': {
@@ -739,8 +741,10 @@ async function runResource(resource, positional, flags, config) {
         console.log(JSON.stringify(res, null, 2));
     else
         table((Array.isArray(res) ? res : res.tokens), cmd.columns);
-    if (cmd.failWhen && get(res, cmd.failWhen.field) === cmd.failWhen.equals)
-        process.exit(2);
+    if (cmd.failWhen && get(res, cmd.failWhen.field) === cmd.failWhen.equals) {
+        process.exitCode = 2;
+        return true;
+    }
     if (!flags.quiet)
         keylessHint(resource, verb, res);
     return true;
@@ -788,11 +792,13 @@ async function defaultOrg(config) {
     return Array.isArray(orgs) && orgs.length === 1 ? orgs[0].id : undefined;
 }
 // Exit codes: 1 error · 2 policy violation (gate/deploy rejected) · 3 not evaluated (no SBOM yet / correlation pending or failed) · 4 authentication (was 3 before 2.9.0)
+// Never process.exit() with output still queued: stdout to a pipe is asynchronous on macOS and Windows, so
+// `matelot … | grep …` could lose lines. Exit codes are set with process.exitCode; the error path flushes first.
 main().catch((error) => {
     console.error(`matelot: ${error instanceof Error ? error.message : String(error)}`);
-    if (error instanceof client_1.CliError && error.code === 'correlation_pending')
-        process.exit(3);
-    process.exit(error instanceof client_1.CliError && error.status === 401 ? 4 : 1);
+    const code = error instanceof client_1.CliError && error.code === 'correlation_pending' ? 3 : error instanceof client_1.CliError && error.status === 401 ? 4 : 1;
+    process.exitCode = code;
+    process.stdout.write('', () => process.stderr.write('', () => process.exit(code)));
 });
 /** `matelot usage`: the month as a short report, then the history table. */
 function usageText(r) {
@@ -879,12 +885,16 @@ async function doctor(urlFlag, json) {
         const r = await get('/api/v1/health/ready');
         add('api', r.status === 200, r.status === 200 ? `${url} ready` : `${url}/api/v1/health/ready → HTTP ${r.status}`);
         if (r.status !== 200) {
+            add('version', null, `skipped: api not ready (HTTP ${r.status})`);
             composeDiagnosis();
             return finish();
         }
     }
     catch (e) {
-        add('api', false, `${url} unreachable: ${e.message}`);
+        const detail = (0, client_1.unreachableDetail)(e);
+        add('api', false, `${url} unreachable: ${detail}`);
+        // the version line is still printed (scripts grep for it) and says why there is none
+        add('version', null, `skipped: api unreachable${(0, client_1.isTlsCode)(e.cause?.code) ? ` (${detail})` : ''}`);
         composeDiagnosis();
         return finish();
     }

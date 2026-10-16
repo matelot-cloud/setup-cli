@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.credentialsPath = exports.CLI_CLIENT_ID = void 0;
+exports.unreachableDetail = unreachableDetail;
+exports.isTlsCode = isTlsCode;
 exports.normalizeCellUrl = normalizeCellUrl;
 exports.listCells = listCells;
 exports.currentCellUrl = currentCellUrl;
@@ -27,6 +29,18 @@ const node_http_1 = require("node:http");
 const node_os_1 = require("node:os");
 const node_path_1 = require("node:path");
 const node_child_process_1 = require("node:child_process");
+const TLS_CODES = new Set(['DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_ISSUER_CERT', 'CERT_HAS_EXPIRED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_NOT_YET_VALID']);
+/** Why a fetch failed, from Node's cause: "DEPTH_ZERO_SELF_SIGNED_CERT (self signed certificate)" plus, for a
+ * certificate the OS may trust but Node does not (Node reads no OS trust store), the NODE_EXTRA_CA_CERTS hint. */
+function unreachableDetail(error) {
+    const cause = error.cause;
+    const code = cause?.code;
+    const detail = code ? `${code}${cause?.message ? ` (${cause.message})` : ''}` : error.message;
+    return isTlsCode(code) ? `${detail} — Node does not read the OS trust store: for a private CA set NODE_EXTRA_CA_CERTS=/path/to/ca.crt (the kind recipe: ~/matelot-dev-ca.crt)` : detail;
+}
+function isTlsCode(code) {
+    return !!code && (TLS_CODES.has(code) || code.startsWith('ERR_TLS_'));
+}
 exports.CLI_CLIENT_ID = 'matelot-cli';
 const credentialsPath = () => process.env.MATELOT_CREDENTIALS ?? (0, node_path_1.join)(process.env.XDG_CONFIG_HOME ?? (0, node_path_1.join)((0, node_os_1.homedir)(), '.config'), 'matelot', 'credentials.json');
 exports.credentialsPath = credentialsPath;
@@ -187,7 +201,7 @@ async function discover(base, f) {
         res = await f(u);
     }
     catch (e) {
-        throw new Error(`cannot reach ${u}: ${e.message}`);
+        throw new Error(`cannot reach ${u}: ${unreachableDetail(e)}`);
     }
     const text = await res.text();
     let meta;

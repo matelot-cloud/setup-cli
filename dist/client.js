@@ -1,9 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VERSION = exports.CliError = void 0;
+exports.VERSION = exports.CliError = exports.unreachableDetail = exports.isTlsCode = void 0;
 exports.configFromEnv = configFromEnv;
 exports.request = request;
 const login_1 = require("./login");
+var login_2 = require("./login");
+Object.defineProperty(exports, "isTlsCode", { enumerable: true, get: function () { return login_2.isTlsCode; } });
+Object.defineProperty(exports, "unreachableDetail", { enumerable: true, get: function () { return login_2.unreachableDetail; } });
 const signing_1 = require("./signing");
 function configFromEnv(env = process.env) {
     const pick = (k) => env[`MATELOT_${k}`] ?? env[`SECOPS_${k}`];
@@ -76,9 +79,7 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
             });
         }
         catch (error) {
-            const cause = error.cause;
-            const detail = cause?.code ? `${cause.code}${cause.message ? ` (${cause.message})` : ''}` : error.message;
-            throw new CliError(`cannot reach ${config.url}: ${detail}. Is MATELOT_URL correct and the platform running / reachable from this runner?`);
+            throw new CliError(`cannot reach ${config.url}: ${(0, login_1.unreachableDetail)(error)}. Is MATELOT_URL correct and the platform running / reachable from this runner?`);
         }
         const text = await response.text();
         let parsed = text;
@@ -102,4 +103,4 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         clearTimeout(timer);
     }
 }
-exports.VERSION = '2.23.0';
+exports.VERSION = '2.23.2';
