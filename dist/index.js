@@ -8,6 +8,7 @@ const signing_1 = require("./signing");
 const zip_read_1 = require("./zip-read");
 const registry_info_1 = require("./registry-info");
 const members_text_1 = require("./members-text");
+const service_text_1 = require("./service-text");
 const login_1 = require("./login");
 const resources_1 = require("./resources");
 const sum = (c) => (c ? Object.values(c).reduce((a, b) => a + b, 0) : 0);
@@ -48,7 +49,7 @@ Commands
 
 Resource commands (matelot <resource> <verb> [--org|--workspace|--team|--project|--service|--env|--id …] [--json] [--body '{json}']):
 ${resources_1.RESOURCES.map((r) => `  ${`${r.resource} ${r.verb}`.padEnd(26)} ${r.summary}`).join('\n')}
-  Policy rule flags: --max-severity high|none --block-kev --block-secrets --require-sbom --max-iac high --honour-decisions --environments production,staging --action block|warn --enforce
+  Policy rule flags: --max-severity high|none --block-kev --block-secrets --require-sbom --max-iac high --max-sast high --honour-decisions (each with a --no-… form; create sends every rule, block rules off unless given) --environments production,staging --action block|warn --enforce
 
 Options: --json (raw output), --quiet
 `;
@@ -651,7 +652,7 @@ async function runResource(resource, positional, flags, config) {
     }
     // fields from flags
     // Unknown flags are an error, not silently ignored (a typo like --enforced must not create a policy without enforcement)
-    const known = new Set(['json', 'quiet', 'body', 'help', 'wait', 'timeout', 'force', 'limit', 'offset', 'q', ...Object.keys(resources_1.PARAM_FLAGS), ...resources_1.RULE_FLAGS, 'component', 'project', ...(cmd.fields ?? []), ...Object.entries(resources_1.FIELD_FLAGS).filter(([, v]) => (cmd.fields ?? []).includes(v)).map(([k]) => k), ...(('query' in cmd ? cmd.query : undefined) ?? [])]);
+    const known = new Set(['json', 'quiet', 'body', 'help', 'wait', 'timeout', 'force', 'limit', 'offset', 'q', ...Object.keys(resources_1.PARAM_FLAGS), ...resources_1.RULE_FLAGS, ...resources_1.RULE_NO_FLAGS, 'component', 'project', ...(cmd.fields ?? []), ...Object.entries(resources_1.FIELD_FLAGS).filter(([, v]) => (cmd.fields ?? []).includes(v)).map(([k]) => k), ...(('query' in cmd ? cmd.query : undefined) ?? [])]);
     if (cmd.fields?.includes('slaDays'))
         for (const k of ['critical', 'high', 'medium', 'low', 'unknown'])
             known.add(k);
@@ -688,7 +689,7 @@ async function runResource(resource, positional, flags, config) {
         if (typeof payload[b] === 'string')
             payload[b] = payload[b] === 'true';
     if (cmd.fields?.includes('rules')) {
-        const rules = (0, resources_1.policyRulesFromFlags)(flags);
+        const rules = (0, resources_1.policyRulesFromFlags)(flags, cmd.method === 'POST' ? 'create' : 'update');
         if (rules)
             payload.rules = rules;
     }
@@ -723,6 +724,10 @@ async function runResource(resource, positional, flags, config) {
         console.log(usageText(res));
         return true;
     }
+    if (resource === 'service' && verb === 'show' && !flags.json && res && typeof res === 'object') {
+        console.log((0, service_text_1.serviceText)(res));
+        return true;
+    }
     if (resource === 'onboarding' && !flags.json && res && typeof res === 'object') {
         console.log(onboardingText(res, verb));
         return true;
@@ -739,8 +744,12 @@ async function runResource(resource, positional, flags, config) {
     }
     if (flags.json || !Array.isArray(res) && !(res && typeof res === 'object' && Array.isArray(res.tokens)))
         console.log(JSON.stringify(res, null, 2));
-    else
-        table((Array.isArray(res) ? res : res.tokens), cmd.columns);
+    else {
+        let rows = (Array.isArray(res) ? res : res.tokens);
+        if (resource === 'policies')
+            rows = rows.map((r) => ({ ...r, rules: (0, resources_1.rulesSummary)(r.rules) }));
+        table(rows, cmd.columns);
+    }
     if (cmd.failWhen && get(res, cmd.failWhen.field) === cmd.failWhen.equals) {
         process.exitCode = 2;
         return true;

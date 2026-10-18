@@ -39,9 +39,15 @@ const env = (port, extra = {}) => ({ ...process.env, MATELOT_URL: `http://127.0.
     try {
         await run('node', [(0, node_path_1.join)(__dirname, 'index.js'), 'policy', 'create-project', '--project', ID, '--name', 'Prod', '--environments', 'production,staging', '--max-sast', 'high', '--max-severity', 'critical', '--block-kev', 'false', '--action', 'block', '--enforce', '--json'], { env: env(port) });
         strict_1.default.equal(s.seen[0].url, `/api/v1/projects/${ID}/policies`);
-        strict_1.default.deepEqual(s.seen[0].body, { name: 'Prod', environmentKinds: ['production', 'staging'], action: 'block', enforceOnDeploy: true, rules: { maxSeverity: 'critical', blockKev: false, maxSastSeverity: 'high' } });
+        // create sends every rule explicitly: block rules off unless asked for (no surprise block_secrets), decisions honoured
+        strict_1.default.deepEqual(s.seen[0].body, { name: 'Prod', environmentKinds: ['production', 'staging'], action: 'block', enforceOnDeploy: true, rules: { maxSeverity: 'critical', blockKev: false, blockSecrets: false, requireSbom: false, honourDecisions: true, maxIacSeverity: null, maxSastSeverity: 'high' } });
         await run('node', [(0, node_path_1.join)(__dirname, 'index.js'), 'policy', 'update', '--id', ID, '--max-sast', 'low', '--json'], { env: env(port) });
         strict_1.default.deepEqual(s.seen[1].body, { rules: { maxSastSeverity: 'low' } }); // only this rule: the API merges with the stored rules
+        // the review's command: --max-severity high --block-kev --action block --enforce, no --block-secrets → blockSecrets false; --no-block-kev turns one off on update
+        await run('node', [(0, node_path_1.join)(__dirname, 'index.js'), 'policy', 'create-project', '--project', ID, '--name', 'P', '--max-severity', 'high', '--block-kev', '--action', 'block', '--enforce', '--json'], { env: env(port) });
+        strict_1.default.deepEqual(s.seen[2].body.rules, { maxSeverity: 'high', blockKev: true, blockSecrets: false, requireSbom: false, honourDecisions: true, maxIacSeverity: null, maxSastSeverity: null });
+        await run('node', [(0, node_path_1.join)(__dirname, 'index.js'), 'policy', 'update', '--id', ID, '--no-block-kev', '--no-honour-decisions', '--json'], { env: env(port) });
+        strict_1.default.deepEqual(s.seen[3].body, { rules: { blockKev: false, honourDecisions: false } });
     }
     finally {
         s.server.close();
