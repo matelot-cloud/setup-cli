@@ -29,7 +29,7 @@ install needs nothing but Node — no build step, no devDependencies), the `exam
 Bitbucket Pipelines, and `action.yml` — so the same repository is both the npm-installable package
 (every release attaches `matelot-cli-X.Y.Z.tgz` and `matelot-cli.tgz`; `npm install -g <asset URL>`) and the GitHub
 Action (`uses: matelot-cloud/setup-cli@<tag>`, which installs the tag's source archive).
-Tags: `v<major>` follows the latest release of that major (`v2`), `v2.24.0` pins one. It is written by the platform's
+Tags: `v<major>` follows the latest release of that major (`v2`), `v2.24.1` pins one. It is written by the platform's
 release pipeline on every CLI release; pull requests cannot be merged here — report problems in
 [matelot-cloud/matelot](https://github.com/matelot-cloud/matelot/issues). Full command reference:
 https://matelot.cloud/docs/latest/cli-reference.html

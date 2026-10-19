@@ -9,6 +9,7 @@ const zip_read_1 = require("./zip-read");
 const registry_info_1 = require("./registry-info");
 const members_text_1 = require("./members-text");
 const service_text_1 = require("./service-text");
+const format_1 = require("./format");
 const login_1 = require("./login");
 const resources_1 = require("./resources");
 const sum = (c) => (c ? Object.values(c).reduce((a, b) => a + b, 0) : 0);
@@ -597,7 +598,7 @@ function loadConfigFile(file) {
 }
 // ---- declarative resource commands ------------------------------------------------------------
 const get = (o, path) => path.split('.').reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), o);
-const cell = (v) => (v === null || v === undefined ? '—' : Array.isArray(v) ? v.map(cell).join(',') : typeof v === 'object' ? JSON.stringify(v) : typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 16).replace('T', ' ') : String(v));
+const cell = (v) => (v === null || v === undefined ? '—' : Array.isArray(v) ? v.map(cell).join(',') : typeof v === 'object' ? JSON.stringify(v) : typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v) ? (0, format_1.when)(v) : String(v));
 function table(rows, columns) {
     if (!rows.length) {
         console.log('(empty)');
