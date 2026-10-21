@@ -224,7 +224,7 @@ Check the handshake: matelot mcp --check`);
                         throw new client_1.CliError(`still ${job.status} after ${flags.timeout ?? 1800}s (job ${job.jobId})`);
                     await new Promise((r) => setTimeout(r, 2000));
                     try {
-                        job = await (0, client_1.request)(config, 'GET', `${scopePath}/correlation/jobs/${job.jobId}`);
+                        job = await (0, client_1.request)(config, 'GET', `${scopePath}/correlation/jobs/${job.jobId}`, undefined, 60_000, { poll: true });
                     }
                     catch (e) {
                         if (String(e).includes('404'))
@@ -392,7 +392,7 @@ Check the handshake: matelot mcp --check`);
                 let last = p;
                 while (Date.now() < deadline && !['succeeded', 'failed', 'cancelled'].includes(last.status)) {
                     await new Promise((r) => setTimeout(r, 5000));
-                    last = await (0, client_1.request)(config, 'GET', `/api/v1/pipelines/${p.id}`);
+                    last = await (0, client_1.request)(config, 'GET', `/api/v1/pipelines/${p.id}`, undefined, 60_000, { poll: true }); // polls are not traced by the cell
                 }
                 out(last, `pipeline #${last.number}: ${last.status} — ${last.jobs.map((j) => `${j.name}=${j.status}`).join(', ')}`);
                 if (last.status !== 'succeeded')

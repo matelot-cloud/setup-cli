@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VERSION = exports.CliError = exports.unreachableDetail = exports.isTlsCode = void 0;
 exports.configFromEnv = configFromEnv;
+exports.unsampledTraceparent = unsampledTraceparent;
 exports.request = request;
 const login_1 = require("./login");
 var login_2 = require("./login");
@@ -46,14 +47,15 @@ class CliError extends Error {
     }
 }
 exports.CliError = CliError;
-/**
- * Over the platform's rate limit (429) the request was refused before anything ran, so it is safe to repeat — also for
- * writes. Waits for Retry-After (at most 60 s, at most 3 times; progress on stderr) and gives up with the API's message.
- */
-async function request(config, method, path, body, timeoutMs = 60_000) {
+/** `00-<random trace>-<random span>-00`: tells the cell "do not trace this request" (docs/observability.md). */
+function unsampledTraceparent() {
+    const hex = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, '0')).join('');
+    return `00-${hex(16)}-${hex(8)}-00`;
+}
+async function request(config, method, path, body, timeoutMs = 60_000, options = {}) {
     for (let attempt = 0;; attempt++) {
         try {
-            return await requestOnce(config, method, path, body, timeoutMs);
+            return await requestOnce(config, method, path, body, timeoutMs, options);
         }
         catch (error) {
             const wait = error instanceof CliError && error.status === 429 ? error.retryAfterSeconds : undefined;
@@ -64,7 +66,7 @@ async function request(config, method, path, body, timeoutMs = 60_000) {
         }
     }
 }
-async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
+async function requestOnce(config, method, path, body, timeoutMs = 60_000, options = {}) {
     const raw = body === undefined ? Buffer.alloc(0) : Buffer.from(JSON.stringify(body));
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -73,7 +75,7 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         try {
             response = await fetch(`${config.url}${path}`, {
                 method,
-                headers: { ...(config.anonymous ? {} : { Authorization: config.token ? `Bearer ${config.token}` : (0, signing_1.signatureHeader)(config.keyId, config.secret, method, path, raw) }), 'Content-Type': 'application/json', 'User-Agent': `secops-cli/${exports.VERSION}` },
+                headers: { ...(config.anonymous ? {} : { Authorization: config.token ? `Bearer ${config.token}` : (0, signing_1.signatureHeader)(config.keyId, config.secret, method, path, raw) }), 'Content-Type': 'application/json', 'User-Agent': `secops-cli/${exports.VERSION}`, ...(options.poll ? { traceparent: unsampledTraceparent() } : {}) },
                 body: raw.length ? raw : undefined,
                 signal: controller.signal,
             });
@@ -103,4 +105,4 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000) {
         clearTimeout(timer);
     }
 }
-exports.VERSION = '2.24.1';
+exports.VERSION = '2.24.2';
