@@ -304,6 +304,7 @@ exports.CUSTOM_COMMANDS = [
     { cmd: 'matelot vulnerabilities recorrelate', method: 'POST', path: '/api/v1/organizations/:org/findings/recorrelate' },
     { cmd: 'matelot vulnerabilities recorrelate --service', method: 'POST', path: '/api/v1/services/:service/findings/recorrelate' },
     { cmd: 'matelot evidence verify', method: 'POST', path: '/api/v1/evidence/verify' },
+    { cmd: 'matelot doctor --test-otlp', method: 'POST', path: '/api/v1/admin/observability/test-otlp' },
 ];
 /** Rule flags accepted by policy commands (also used to reject unknown flags). */
 exports.RULE_FLAGS = ['max-severity', 'block-kev', 'block-secrets', 'require-sbom', 'max-iac', 'max-sast', 'honour-decisions'];

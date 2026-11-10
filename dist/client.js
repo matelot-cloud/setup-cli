@@ -75,7 +75,7 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000, optio
         try {
             response = await fetch(`${config.url}${path}`, {
                 method,
-                headers: { ...(config.anonymous ? {} : { Authorization: config.token ? `Bearer ${config.token}` : (0, signing_1.signatureHeader)(config.keyId, config.secret, method, path, raw) }), 'Content-Type': 'application/json', 'User-Agent': `secops-cli/${exports.VERSION}`, ...(options.poll ? { traceparent: unsampledTraceparent() } : {}) },
+                headers: { ...(config.anonymous ? {} : { Authorization: config.token ? `Bearer ${config.token}` : (0, signing_1.signatureHeader)(config.keyId, config.secret, method, path, raw) }), 'Content-Type': 'application/json', 'User-Agent': `secops-cli/${exports.VERSION}`, ...(options.poll ? { traceparent: unsampledTraceparent(), 'x-matelot-poll': '1' } : {}) },
                 body: raw.length ? raw : undefined,
                 signal: controller.signal,
             });
@@ -105,4 +105,4 @@ async function requestOnce(config, method, path, body, timeoutMs = 60_000, optio
         clearTimeout(timer);
     }
 }
-exports.VERSION = '2.24.2';
+exports.VERSION = '2.25.0';
